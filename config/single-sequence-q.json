@@ -1,0 +1,28 @@
+{
+    "name": "single-sequence-q",
+    "method": "deep-q",
+    "pbd_path": "/gpfs/u/scratch/HPDM/shared/pdb/pdb_mmcif/mmcif_files",
+    "sequences": [
+        {
+            "file_id": "2igd.cif",
+            "chain_id": "A"
+        }
+    ],
+    "num_sims_train": 2496,
+    "num_sims_eval": 1248,
+    "q_epsilon_max": 1.0,
+    "q_epsilon_min": 0.01,
+    "q_epsilon_gamma": 0.99,
+    "q_learning_rate": 0.75,
+    "q_discount_factor": 0.9,
+    "q_reward_backfill": 0.1,
+    "q_tau": 0.01,
+    "batch_size": 1024,
+    "num_batches": 10,
+    "lr": 1e-4,
+    "gamma": 0.1,
+    "milestones": [],
+    "betas": [0.9, 0.999],
+    "l2_reg": 1e-3,
+    "amsgrad": true
+}
