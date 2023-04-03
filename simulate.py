@@ -592,10 +592,10 @@ if __name__ == '__main__':
     with torch.no_grad():
         while not done:
             # Use deterministic policy
-            obs = obs.unsqueeze(1).to(device)
-            mask = obs.new_zeros((1, obs.size(0)), dtype=torch.bool)
+            obs_input = obs.unsqueeze(1).to(device)
+            mask = obs_input.new_zeros((1, obs.size(0)), dtype=torch.bool)
             if args.method == 'deep-q':
-                q_values = net(obs, mask).squeeze()
+                q_values = net(obs_input, mask).squeeze()
                 a = torch.argmax(q_values[get_actions(obs)]).item()
                 obs, value, done, _, _ = env.step(a)
                 intermediate_structures.append(env.unwrapped.export_pdb()[1])
