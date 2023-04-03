@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 This file defines the procedure for generating simulation data to be used
 for training and evaluation.
@@ -6,6 +8,7 @@ Created on 3/3/2023 by Steven Laverty (lavers@rpi.edu)
 '''
 
 from __future__ import annotations
+import argparse
 from contextlib import nullcontext
 import ctypes
 import json
@@ -39,16 +42,20 @@ MAX_OBS_LEN = 128
 MAX_CONCURRENT_EVALS = 64
 
 
+def get_actions(obs: torch.Tensor):
+    # For the first action only, restrict to polar transformations
+    # If the second group has already been placed, then its future
+    # indicator will be zero.
+    if obs[1, 0]:
+        return POLAR_ONLY
+    return ALL_ACTIONS
+
+
 def run_alphazero_sim(
     seq_id: dict[str, str],
     net: typing.Callable[[torch.Tensor], tuple[np.ndarray, float]],
     evaluate: bool = False,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor], float]:
-    def get_actions(state: State):
-        if state.idx == 1:
-            return POLAR_ONLY
-        return ALL_ACTIONS
-
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
     env = TransformerInputObs(env)
@@ -102,14 +109,6 @@ def run_q_sim(
     evaluate: bool = False,
     epsilon: float = 0.01,
 ) -> tuple[list[torch.Tensor], list[int], float]:
-    def get_actions(obs: torch.Tensor):
-        # For the first action only, restrict to polar transformations
-        # If the second group has already been placed, then its future
-        # indicator will be zero.
-        if obs[1, 0]:
-            return POLAR_ONLY
-        return ALL_ACTIONS
-
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
     env = TransformerInputObs(env)
@@ -535,3 +534,75 @@ def batch_sim(
         )
         logger.info('All simulation results saved to %s.', result_file)
     return results
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'method',
+        type=str,
+        help='Deep RL algorithm ()'
+    )
+    parser.add_argument(
+        'model_file',
+        type=str,
+        help='Model file to use for simulation.',
+    )
+    parser.add_argument(
+        'pdb_file',
+        type=str,
+        help='PDB file to use for simulation.',
+    )
+    parser.add_argument(
+        'chain_id',
+        type=str,
+        help='PDB chain ID to use for simulation.',
+    )
+    parser.add_argument(
+        '-o',
+        '--out_file',
+        type=str,
+        help='File to store results of the simulation',
+    )
+    args = parser.parse_args()
+    
+    # Initialize environment
+    env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
+    env = TransformerInputObs(env)
+    env = TensorObs(env)
+
+    # Initialize model
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    checkpoint = load_model(args.model_file)
+    if args.method == 'alpha-zero':
+        net = FoldZeroNet()
+        net.load_state_dict(checkpoint['net_state_dict'])
+    elif args.method == 'deep-q':
+        net = FoldQNet()
+        net.load_state_dict(checkpoint['net_state_dict'][0])
+    net.to(device).eval()
+
+
+    # Run simulation
+    intermediate_structures = []
+    done = False
+    obs, _ = env.reset(options={
+        'file_id': args.pdb_file,
+        'chain_id': args.chain_id,
+    })
+    intermediate_structures.append(env.unwrapped.export_pdb()[1])
+    with torch.no_grad():
+        while not done:
+            # Use deterministic policy
+            q_values = net(obs)
+            a = torch.argmax(q_values[get_actions(obs)]).item()
+            obs, value, done, _, _ = env.step(a)
+            intermediate_structures.append(env.unwrapped.export_pdb()[1])
+    print('Final reward: {}'.format(value))
+
+    if args.out_file is not None:
+        with open(args.out_file, 'w') as f:
+            f.write('Final reward: {}\n'.format(value))
+            f.write('Intermediate structures\n--\n')
+            f.write('--\n'.join(intermediate_structures))
+            f.write('True structure\n--')
+            f.write(env.unwrapped.export_pdb()[0])

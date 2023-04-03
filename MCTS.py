@@ -334,7 +334,7 @@ def UCT_search(
         a value estimate from an observation.
 
     actions -- a function that determines which actions are available
-        for a given environment state.
+        for a given environment observation.
     
     obs -- the initial observation from the root state.
 
@@ -352,7 +352,7 @@ def UCT_search(
     '''
     # Initialize root node.
     if root is None:
-        valid_actions = actions(env.unwrapped.state)
+        valid_actions = actions(obs)
         action_priors, value_estimate = net(obs)
         root = UCTNode(
             env.unwrapped.state,
@@ -372,7 +372,7 @@ def UCT_search(
             obs, _, terminated, _, _ = env.step(leaf.actions[action])
             valid_actions = (
                 np.empty(0, dtype=np.int64) if terminated
-                else actions(env.unwrapped.state)
+                else actions(obs)
             )
             action_priors, value_estimate = net(obs)
             leaf = leaf.add_child(
