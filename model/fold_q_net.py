@@ -90,6 +90,9 @@ class FoldQNet(nn.Module):
     obs -- a tensor of shape (L, N, in_dim) to calculate policy and value
         estimates for. Observations of length less than L are expected to
         be padded with nan.
+    mask -- a binary tensor of shape (N, L) where True indicates
+        that this is a padded addition to the sequence and it should be
+        ignored during self-attention.
 
     Outputs:
     q -- tensor of q action-values, one for each action.
