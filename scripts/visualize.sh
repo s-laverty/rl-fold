@@ -9,6 +9,6 @@
 . /gpfs/u/scratch/HPDM/shared/miniconda3/etc/profile.d/conda.sh
 conda activate rl-fold
 
-srun simulate.py -o deep-q \
-    single-sequence-results.out models/single-sequence-q_model_iter_793.pth \
+srun simulate.py -o single-sequence-results.out \
+    deep-q models/single-sequence-q_model_iter_793.pth \
     /gpfs/u/scratch/HPDM/shared/pdb/pdb_mmcif/mmcif_files/2igd.cif A
