@@ -4,6 +4,11 @@
 *.out
 *.fa
 
+# Model files
+models/
+model_evaluations/
+datasets/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
