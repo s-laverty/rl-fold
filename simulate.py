@@ -579,8 +579,7 @@ if __name__ == '__main__':
     elif args.method == 'deep-q':
         net = FoldQNet()
         net.load_state_dict(checkpoint['net_state_dict'][0])
-    net.to(device).eval()
-
+    net = net.to(device).eval()
 
     # Run simulation
     intermediate_structures = []
@@ -593,12 +592,15 @@ if __name__ == '__main__':
     with torch.no_grad():
         while not done:
             # Use deterministic policy
-            obs.unsqueeze(1).to(device)
+            obs = obs.unsqueeze(1).to(device)
             mask = obs.new_zeros((1, obs.size(0)), dtype=torch.bool)
-            q_values = net(obs, mask).squeeze()
-            a = torch.argmax(q_values[get_actions(obs)]).item()
-            obs, value, done, _, _ = env.step(a)
-            intermediate_structures.append(env.unwrapped.export_pdb()[1])
+            if args.method == 'deep-q':
+                q_values = net(obs, mask).squeeze()
+                a = torch.argmax(q_values[get_actions(obs)]).item()
+                obs, value, done, _, _ = env.step(a)
+                intermediate_structures.append(env.unwrapped.export_pdb()[1])
+            elif args.method == 'alpha-zero':
+                raise NotImplementedError()
     print('Final reward: {}'.format(value))
 
     if args.out_file is not None:
