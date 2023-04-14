@@ -1,7 +1,7 @@
 '''
 This file runs tests on the fold_sim environment.
 
-Created on 3/7/2023 by Steven Laverty (lavers@rpi.edu)
+Created on 2/1/2023 by Steven Laverty (lavers@rpi.edu)
 '''
 
 import gymnasium as gym
