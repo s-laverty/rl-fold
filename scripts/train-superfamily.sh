@@ -9,4 +9,4 @@
 . /gpfs/u/scratch/HPDM/shared/miniconda3/etc/profile.d/conda.sh
 conda activate rl-fold
 
-srun train.py "config/single-superfamily.json" 1000 -a -p
+srun python train.py "config/single-superfamily.json" 1000 -a -p

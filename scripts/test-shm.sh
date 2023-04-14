@@ -9,4 +9,4 @@
 . /gpfs/u/scratch/HPDM/shared/miniconda3/etc/profile.d/conda.sh
 conda activate rl-fold
 
-srun train.py "config/shm-test.json" 21 -i 0 -c
+srun python train.py "config/shm-test.json" 21 -i 0 -c

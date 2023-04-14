@@ -9,4 +9,4 @@
 . /gpfs/u/scratch/HPDM/shared/miniconda3/etc/profile.d/conda.sh
 conda activate rl-fold
 
-srun cap_test.py
+srun python scripts/cap_test.py

@@ -9,4 +9,4 @@
 . /gpfs/u/scratch/HPDM/shared/miniconda3/etc/profile.d/conda.sh
 conda activate rl-fold
 
-srun train.py "config/single-sequence-zero.json" 2 -a
+srun python train.py "config/single-sequence-zero.json" 2 -a
