@@ -147,6 +147,7 @@ def pad_sequence_with_mask(
 
     Modified from torch.nn.utils.rnn.pad_sequence
     '''
+
     max_len = max([s.size(0) for s in seq])
     trailing_dims = seq[0].size()[1:]
     out_dims = (max_len, len(seq)) + trailing_dims
@@ -164,6 +165,9 @@ def pad_sequence_with_mask(
 
 
 def model_file_name(dir: str, name: str, iteration: int) -> str:
+    '''
+    Get the full formatted model file path for a given iteration.
+    '''
     return os.path.join(
         dir,
         '{}_model_iter_{}.pth'.format(name, iteration),
@@ -171,6 +175,9 @@ def model_file_name(dir: str, name: str, iteration: int) -> str:
 
 
 def eval_file_name(dir: str, name: str, iteration: int) -> str:
+    '''
+    Get the full formatted model eval file path for a given iteration.
+    '''
     return os.path.join(
         dir,
         '{}_eval_iter_{}.pth'.format(name, iteration),
@@ -178,6 +185,9 @@ def eval_file_name(dir: str, name: str, iteration: int) -> str:
 
 
 def dataset_file_name(dir: str, name: str, iteration: int) -> str:
+    '''
+    Get the full formatted model data path for a given iteration.
+    '''
     return os.path.join(
         dir,
         '{}_dataset_iter_{}.pth'.format(name, iteration),
@@ -186,9 +196,15 @@ def dataset_file_name(dir: str, name: str, iteration: int) -> str:
 
 class ModelCheckpoint(typing_extensions.TypedDict):
     iteration: int
+    ''' Latest model iteration. '''
     net_state_dict: dict | tuple[dict, dict]
+    '''
+    zero_net state dict or tuple of [policy, target] q_net state dicts
+    '''
     optimizer_state_dict: dict
+    ''' Optimizer state dict. '''
     scheduler_state_dict: dict
+    ''' LR scheduler state dict. '''
 
 
 def save_model(
@@ -198,6 +214,9 @@ def save_model(
     scheduler_state_dict: dict,
     file_name: str,
 ) -> None:
+    '''
+    Save a model checkpoint given the current state.
+    '''
     dirname = os.path.dirname(file_name)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -213,14 +232,21 @@ def save_model(
 
 
 def load_model(file_name: str) -> ModelCheckpoint:
+    '''
+    Load a model checkpoint, mapping all tensors to the cpu.
+    '''
     return torch.load(file_name, map_location='cpu')
 
 
 class EvalCheckpoint(typing_extensions.TypedDict):
     iteration: int
+    ''' Latest model iteration. '''
     latest_avg_reward: float
+    ''' Latest evaluation. '''
     best_model_iteration: int
+    ''' Model iteration with the best evaluation. '''
     best_avg_reward: float
+    ''' Evaluation of the best model. '''
 
 
 def save_eval(
@@ -230,6 +256,9 @@ def save_eval(
     best_avg_reward: float,
     file_name: str,
 ) -> None:
+    '''
+    Save an evaluation checkpoint given the current state.
+    '''
     dirname = os.path.dirname(file_name)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -245,4 +274,7 @@ def save_eval(
 
 
 def load_eval(file_name: str) -> EvalCheckpoint:
+    '''
+    Load an evaluation checkpoint.
+    '''
     return torch.load(file_name)
