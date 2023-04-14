@@ -9,7 +9,6 @@ Created on 3/4/2023 by Steven Laverty (lavers@rpi.edu)
 from __future__ import annotations
 
 import argparse
-from collections import deque
 import itertools
 import json
 import logging
@@ -20,6 +19,7 @@ import re
 import tempfile
 import time
 import typing
+from collections import deque
 
 import torch
 import torch.distributed as dist
@@ -30,7 +30,7 @@ import torch.optim as optim
 import torch.utils.data as data
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-import utils
+import utils.utils as utils
 from model.fold_q_net import FoldQNet
 from model.fold_zero_net import FoldZeroNet
 from simulate import batch_sim
@@ -46,10 +46,14 @@ NUM_PREV_DATASETS = 20
 
 
 def create_initial_model(
-    config: dict,
+    config: utils.Config,
     model_dir: str,
     clobber: bool,
 ) -> None:
+    '''
+    Create the initial model and evaluate it.
+    '''
+
     # Generate model checkpoint using config parameters.
     model_file = utils.model_file_name(
         model_dir,
@@ -100,6 +104,10 @@ def create_initial_model(
 def alpha_zero_collate_fn(
     batch: list[tuple[torch.Tensor, torch.Tensor, float]],
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    '''
+    Collate a minibatch sample for an AlphaZero transition dataset.
+    '''
+
     obs, p, v = zip(*batch)
     obs, mask = utils.pad_sequence_with_mask(obs)
     p = torch.stack(p)
@@ -110,6 +118,10 @@ def alpha_zero_collate_fn(
 def deep_q_collate_fn(
     batch: list[tuple[torch.Tensor, int, float, torch.Tensor, bool]],
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    '''
+    Collate a minibatch sample for an AlphaZero transition dataset.
+    '''
+
     obs, a, reward, next_obs, done = zip(*batch)
     obs, mask = utils.pad_sequence_with_mask(obs)
     next_obs = rnn.pad_sequence(next_obs)
@@ -125,6 +137,10 @@ def alpha_zero_loss_fn(
     p: torch.Tensor,
     v: torch.Tensor,
 ) -> torch.Tensor:
+    '''
+    Weighted MSE loss for value and prior prediction error.
+    '''
+
     v_err = (v_pred - v)**2
     p_err = -torch.sum(p * log_p_pred, dim=1)
     return torch.mean(v_err + p_err)
@@ -137,11 +153,16 @@ def train_worker(
     rank: int,
     world_size: int,
     init_file: str,
-    config: dict,
+    config: utils.Config,
     model_dir: str,
     iteration: int,
     dataset_src: str | typing.Sequence,
 ):
+    '''
+    Entry point for distributed model training. Will terminate after
+    checkpointing the next model iteration.
+    '''
+
     dist.init_process_group(
         'nccl',
         init_method='file://' + init_file,
@@ -173,7 +194,8 @@ def train_worker(
     net.train()
 
     # Initialize optimizer
-    optimizer = optim.AdamW([{'params': params} for params in net.parameters()])
+    optimizer = optim.AdamW([{'params': params}
+                            for params in net.parameters()])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     # Initialize scheduler
@@ -218,8 +240,8 @@ def train_worker(
             val = (
                 reward
                 + torch.logical_not(done)
-                    * config['q_discount_factor']
-                    * torch.max(next_obs_q, dim=1)[0]
+                * config['q_discount_factor']
+                * torch.max(next_obs_q, dim=1)[0]
             )
             target_q = (
                 (1 - config['q_learning_rate']) * pred_q
@@ -266,6 +288,11 @@ def shuffle_combined_dataset(
     combined_dataset: typing.Iterable[typing.Iterable],
     seed: int = None,
 ) -> list:
+    '''
+    Return a shuffled, flattened copy of the provided dataset.
+    Optionally provide a random seed to use for shuffling.
+    '''
+
     dataset = list(itertools.chain.from_iterable(combined_dataset))
     logger.debug('Combined dataset contains %d entries.', len(dataset))
 
@@ -277,12 +304,18 @@ def shuffle_combined_dataset(
 
 
 def train_iteration(
-    config: dict,
+    config: utils.Config,
     model_dir: str,
     iteration: int,
     combined_dataset: typing.Iterable[typing.Iterable],
     clobber: bool,
 ):
+    '''
+    Train the model using random samples from the NUM_PREV_DATASETS
+    most-recent datasets using pytorch DistributedDataParallel.
+    Save the updated model checkpoint upon completion.
+    '''
+
     # Make sure devices are available for training.
     if not torch.cuda.is_available():
         raise RuntimeError('CUDA device required for net training!')
@@ -297,7 +330,7 @@ def train_iteration(
     )):
         raise ValueError(
             'Model checkpoint for iteration {} already exists.'.format(iteration))
-    
+
     with tempfile.TemporaryDirectory() as temp_dir:
         # Collect dataset
         logger.info('Shuffling combined dataset')
@@ -330,7 +363,7 @@ def train_iteration(
 
 
 def eval_iteration(
-    config: dict,
+    config: utils.Config,
     model_dir: str,
     evaluation_dir: str,
     iteration: int,
@@ -338,6 +371,11 @@ def eval_iteration(
     prev_best_avg_reward: float,
     clobber: bool,
 ) -> tuple[int, float]:
+    '''
+    Evaluate the average unweighted reconstruction for the provided
+    model iteration.
+    '''
+
     eval_file = utils.eval_file_name(
         evaluation_dir,
         config['name'],
@@ -383,9 +421,14 @@ def eval_iteration(
 
 
 def process_raw_dataset(
-    config: dict,
+    config: utils.Config,
     raw_dataset: typing.Iterable,
 ) -> list:
+    '''
+    Process the raw (condensed) dataset into a list of simple state
+    transitions.
+    '''
+
     if config['method'] == 'alpha-zero':
         return [
             (obs, p, value)
@@ -407,12 +450,16 @@ def process_raw_dataset(
 
 
 def gen_dataset(
-    config: dict,
+    config: utils.Config,
     model_file: str,
     dataset_dir: str,
     iteration: int,
     clobber: bool,
 ) -> list:
+    '''
+    Generate a transition dataset from the provided model iteration.
+    '''
+
     dataset_file = utils.dataset_file_name(
         dataset_dir,
         config['name'],
@@ -437,11 +484,15 @@ def gen_dataset(
 
 
 def collect_datasets(
-    config: dict,
+    config: utils.Config,
     dataset_dir: str,
     iteration: int,
     init: bool = False,
 ) -> list[list]:
+    '''
+    Load the NUM_PREV_DATASETS most recent datasets into memory.
+    '''
+
     # Load datasets from the most recent model iterations into shared memory
     combined_dataset = []
     # last_iteration = iteration - 1 if init else iteration
@@ -466,7 +517,7 @@ def collect_datasets(
 
 
 def train_pipeline(
-    config: dict,
+    config: utils.Config,
     start_iteration: int,
     num_iterations: int,
     model_dir: str,
@@ -475,6 +526,11 @@ def train_pipeline(
     clobber: bool,
     purge: bool,
 ) -> None:
+    '''
+    Run the main training pipeline. Load the most recent model iteration
+    (or generate a new one, if start_iteration=0). Next, enter the main
+    training loop (gen data, train, eval) for num_iterations.
+    '''
 
     if start_iteration == 0:
         # Create initial model if start_iteration is 0
@@ -538,7 +594,7 @@ def train_pipeline(
             best_iteration = checkpoint['best_model_iteration']
             best_avg_reward = checkpoint['best_avg_reward']
             del checkpoint
-    
+
     # Load most recent datasets
     combined_dataset = deque(
         collect_datasets(
@@ -593,8 +649,8 @@ def train_pipeline(
                 )
                 if os.path.exists(old_dataset):
                     os.remove(old_dataset)
-                logger.info('Dataset iteration %d removed.', iteration - NUM_PREV_DATASETS - 1)
-
+                logger.info('Dataset iteration %d removed.',
+                            iteration - NUM_PREV_DATASETS - 1)
 
         # Train this iteration.
         train_iteration(
@@ -619,6 +675,16 @@ def train_pipeline(
 
 if __name__ == '__main__':
     # Parse arguments
+    class Args(argparse.Namespace):
+        config_file: str
+        num_iterations: int
+        iteration: int
+        data_dir: str
+        model_dir: str
+        eval_dir: str
+        clobber: bool
+        auto: bool
+        purge: bool
     parser = argparse.ArgumentParser()
     parser.add_argument('config_file', type=str,
                         help='Configuration JSON file used for training.')
@@ -636,18 +702,18 @@ if __name__ == '__main__':
                         help='Overwrite existing model and dataset files.')
     parser.add_argument('-a', '--auto', action='store_true',
                         help='Automatically continue from the next previous model iteration found in the model directory.')
-    parser.add_argument('-p', '--purge', action='store_true', help='Automatically purge old (unused) dataset files as they become unneeded.')
-    args = parser.parse_args()
+    parser.add_argument('-p', '--purge', action='store_true',
+                        help='Automatically purge old (unused) dataset files as they become unneeded.')
+    args = parser.parse_args(namespace=Args)
 
     # Use the provided configuration file to determine training hyperparameters
     logger.info('Parsing config file.')
     with open(args.config_file) as f:
-        config = json.load(f)
+        config = utils.Config(json.load(f))
     if args.auto:
         if args.iteration != 0:
             raise ValueError(
                 'Using the -a flag is mutually exclusive with using the -i flag!')
-
         for fname in pathlib.Path(args.model_dir).glob(
             utils.model_file_name('.', config['name'], '*')
         ):
