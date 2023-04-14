@@ -1,3 +1,11 @@
+'''
+This file defines a wrapper to convert observations to dictionaries
+with named members. This is useful for generating observations in
+a human-readable format.
+
+Created on 2/25/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import typing
 
 import gymnasium as gym

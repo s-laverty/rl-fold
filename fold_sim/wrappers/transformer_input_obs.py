@@ -1,3 +1,11 @@
+'''
+This file defines a wrapper to convert observations to a single list
+of constant-size unit-scaled values. This is useful for providing
+a usable input for transformer or RNN-style neural networks.
+
+Created on 3/2/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import typing
 import gymnasium as gym
 from gymnasium import spaces

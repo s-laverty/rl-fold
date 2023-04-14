@@ -1,3 +1,10 @@
+'''
+This file defines a wrapper to convert a tuple of discrete angle action
+indices to a single global action index.
+
+Created on 2/25/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import typing
 
 import gymnasium as gym

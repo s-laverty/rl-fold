@@ -1,3 +1,11 @@
+'''
+This file defines a wrapper to rescale reconstruction error rewards
+by the approximate length of the sequence. This is useful for training
+on datasets with proteins of varying size.
+
+Created on 2/27/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import gymnasium as gym
 
 from fold_sim.envs.group_fold import GROUP_SIZE, RES_ENCODE_N_CAT
