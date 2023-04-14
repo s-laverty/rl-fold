@@ -172,4 +172,3 @@ dependencies:
       - numpy==1.21.6
       - numpy-quaternion==2022.4.3
       - typing-extensions==4.5.0
-prefix: /gpfs/u/home/HPDM/HPDMlvrt/scratch-shared/miniconda3/envs/rl-fold
