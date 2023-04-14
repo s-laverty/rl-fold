@@ -20,7 +20,7 @@ from typing import Any, Sequence, Mapping, Optional
 import re
 import string
 
-from fold_sim.envs import residue_constants
+from fold_sim.utils import residue_constants
 from Bio.PDB import PDBParser
 import numpy as np
 

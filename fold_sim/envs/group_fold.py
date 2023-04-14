@@ -15,11 +15,8 @@ import numpy as np
 import quaternion
 import typing_extensions
 from gymnasium import spaces
-from fold_sim.envs import protein
 
-from fold_sim.envs.mmcif_parsing import get_atom_coords, parse
-from fold_sim.envs.residue_constants import (restype_order_with_x,
-                                             sequence_to_onehot)
+from fold_sim.utils import mmcif_parsing, protein, residue_constants
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
@@ -327,6 +324,7 @@ class ResGroupFoldDiscrete(gym.Env):
         -   Compute MSE for every group in every local frame, then
             return the average over all groups
         '''
+
         return -np.mean(np.linalg.norm(
             # Sim: group points in local frames (n_groups - 1, n_groups + 1, 3)
             (
@@ -345,7 +343,7 @@ class ResGroupFoldDiscrete(gym.Env):
             axis=-1,
         ))
 
-        # TODO collision loss?
+        # TODO collision loss
 
     def reset(
         self,
@@ -353,6 +351,12 @@ class ResGroupFoldDiscrete(gym.Env):
         seed: int | None = None,
         options: ResetOptions | None = None,
     ) -> tuple[tuple[np.ndarray, np.ndarray], Info]:
+        '''
+        Reset the environment using a given pdb structure. The first
+        residue group will have a randomized number of padded residues
+        before the first real one.
+        '''
+
         super().reset(seed=seed)
 
         logger.debug('Parsing PDB file')
@@ -360,23 +364,25 @@ class ResGroupFoldDiscrete(gym.Env):
         with open(options['file_id']) as file:
             mmcif_string = file.read()
         try:
-            parse_result = parse(
+            parse_result = mmcif_parsing.parse(
                 file_id=options['file_id'],
                 mmcif_string=mmcif_string,
             )
         except Exception as err:
-            raise Exception('Could not parse mmcif file {}'.format(options['file_id'])) from err
+            raise Exception('Could not parse mmcif file {}'.format(
+                options['file_id'])) from err
         try:
             self.seqres = parse_result.mmcif_object.chain_to_seqres[
                 options['chain_id']
             ]
-            onehot_seqres = sequence_to_onehot(
+            onehot_seqres = residue_constants.sequence_to_onehot(
                 self.seqres,
-                restype_order_with_x,
+                residue_constants.restype_order_with_x,
             )
         except Exception as err:
-            raise Exception('Sequence id {} not found in file id {}'.format(options['chain_id'], options['file_id'])) from err
-        self.atom_coords, self.atom_mask = get_atom_coords(
+            raise Exception('Sequence id {} not found in file id {}'.format(
+                options['chain_id'], options['file_id'])) from err
+        self.atom_coords, self.atom_mask = mmcif_parsing.get_atom_coords(
             # Order: N, Cα, C, O
             parse_result.mmcif_object,
             options['chain_id'],
@@ -502,6 +508,13 @@ class ResGroupFoldDiscrete(gym.Env):
         bool,
         Info,
     ]:
+        '''
+        Place the next residue group according to a discrete action.
+        Update the intermediate simulated structure and provide a
+        reconstruction error reward only when the final group has been
+        placed.
+        '''
+
         # Only step if the state is not already terminal
         if self.state.idx < self.groups.size:
             new_rot = self.state.sim_rot[-1] * ACTION_TO_QUAT[action]
@@ -542,8 +555,16 @@ class ResGroupFoldDiscrete(gym.Env):
         pass
 
     def export_pdb(self) -> tuple[str, str]:
+        '''
+        Generate a tuple of pdb strings; one represents the true
+        structure, the other represents the simulated structure.
+        They are aligned along the reference frame of the first
+        amino acid group.
+        '''
+
         aatype = np.fromiter(
-            (restype_order_with_x[res] for res in self.seqres),
+            (residue_constants.restype_order_with_x[res]
+             for res in self.seqres),
             int,
         )
         residue_index = np.arange(len(aatype))

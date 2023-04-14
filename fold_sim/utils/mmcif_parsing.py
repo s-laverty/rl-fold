@@ -26,7 +26,7 @@ from Bio import PDB
 from Bio.Data import SCOPData
 import numpy as np
 
-import fold_sim.envs.residue_constants as residue_constants
+from fold_sim.utils import residue_constants
 
 
 # Type aliases:
