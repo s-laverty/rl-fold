@@ -16,6 +16,115 @@ import torch
 import typing_extensions
 
 
+class SequenceId(typing_extensions.TypedDict):
+    '''
+    Unique identifying information for a protein sequence in the pdb.
+    '''
+    file_id: str
+    chain_id: str
+
+
+class Config(typing_extensions.TypedDict):
+    '''
+    JSON config file data.
+    '''
+
+    # Basic config
+    name: str
+    ''' [Required] The configuration's unique name. '''
+    method: str
+    ''' [Required] The RL algorithm (either alpha-zero or deep-q). '''
+    pbd_path: str
+    '''
+    [Required] The absolute or relative path to the pbd data directory.
+    '''
+    sequences: list[SequenceId]
+    ''' [Required] The sequence dataset to train on. '''
+    num_sims_train: int
+    '''
+    [Required] The number of simulations to run for each sequence in the
+    training dataset during model training.
+    '''
+    num_sims_eval: int
+    '''
+    [Required] The number of simulations to run for each sequence in the
+    training dataset during model evaluation.
+    '''
+    batch_size: int
+    ''' [Required] The batch size to use during training. '''
+    num_batches: int
+    ''' [Required] How many batches to train on before checkpointing. '''
+    simulate_shm: bool
+    '''
+    [Optional] If true, use shared memory to transfer simulation worker
+    data to the main process. Default true
+    '''
+    dataset_shm: bool
+    '''
+    [Optional] If true, keep all data in shared memory. Requires a large
+    number of file descriptors. Default false.
+    '''
+
+    # Optim config
+    lr: float
+    ''' [Required] The learning rate. '''
+    gamma: float
+    ''' [Required] The learning rate scheduler decay rate. '''
+    milestones: list[int]
+    '''
+    [Required] The model iterations at which to decay the learning rate.
+    '''
+    betas: tuple[int, int]
+    '''
+    [Optional] The betas for the ADAM W optimizer. Default [0.9, 0.999].
+    '''
+    l2_reg: float
+    '''
+    [Optional] The weight decay parameter for all non-bias model
+    parameters. Default 0.
+    '''
+    amsgrad: bool
+    '''
+    [Optional] If true, use the amsgrad variant of ADAM W.
+    Default false.
+    '''
+
+    # Deep Q learning config (only used when method='deep-q')
+    q_epsilon_max: float
+    '''
+    [Required] The maximum (initial) epsilon for the epsilon-greedy
+    policy.
+    '''
+    q_epsilon_min: float
+    '''
+    [Required] The minimum (final) epsilon for the epsilon-greedy
+    policy.
+    '''
+    q_epsilon_gamma: float
+    ''' [Required] The epsilon decay rate. '''
+    q_learning_rate: float
+    '''
+    [Required] The Q-learning learning rate (alpha parameter) used for
+    determining the training target Q-value.
+    '''
+    q_discount_factor: float
+    '''
+    [Required] The Q-learning discount factor (gamma parameter) used for
+    determining the training target Q-value.
+    '''
+    q_tau: float
+    '''
+    [Required] The soft-update parameter for the target network.
+    '''
+    q_reward_backfill: float
+    '''
+    [Optional] The reward backfill parameter to use for each training
+    episode. The reward is propagated as:
+    
+    (final_reward) * reward_backfill^(1 - step/num_epsiode_steps)
+    '''
+
+
 class TensorObs(gym.ObservationWrapper):
     '''
     Map the output to a shared torch float tensor.
@@ -77,14 +186,14 @@ def dataset_file_name(dir: str, name: str, iteration: int) -> str:
 
 class ModelCheckpoint(typing_extensions.TypedDict):
     iteration: int
-    net_state_dict: dict
+    net_state_dict: dict | tuple[dict, dict]
     optimizer_state_dict: dict
     scheduler_state_dict: dict
 
 
 def save_model(
     iteration: int,
-    net_state_dict: dict,
+    net_state_dict: dict | tuple[dict, dict],
     optimizer_state_dict: dict,
     scheduler_state_dict: dict,
     file_name: str,
