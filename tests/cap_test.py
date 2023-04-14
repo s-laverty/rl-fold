@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+'''
+This file runs tests to determine hardware capability.
+
+Created on 3/7/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import torch
 import torch.optim as optim
 import torch.distributed as dist

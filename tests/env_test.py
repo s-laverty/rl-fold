@@ -1,3 +1,9 @@
+'''
+This file runs tests on the fold_sim environment.
+
+Created on 3/7/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,8 +69,8 @@ Test reset
 obs, info = env.reset(
     seed=1,
     options={
-        'file_id': '1dm7.cif',
-        # 'file_id': '2igd.cif',
+        # 'file_id': '1dm7.cif',
+        'file_id': '2igd.cif',
         'chain_id': 'A',
     },
 )
@@ -82,17 +88,34 @@ if True:
     ).sum(axis=-1).sum(axis=-1)
     optimal_policy = np.argmax(dot_product, axis=-1)
 
-    for action in optimal_policy:
-        obs, reward, done, _, info = env.step(action)
-    assert done
+    if False:
+        for action in optimal_policy:
+            obs, reward, done, _, info = env.step(action)
+        assert done
+        if True:
+            true_pdb, sim_pdb = env.unwrapped.export_pdb()
+            with open('test_true.pdb', 'w') as f:
+                f.write(true_pdb)
+            with open('test_sim.pdb', 'w') as f:
+                f.write(sim_pdb)
+        print('Optimal policy: {}'.format(optimal_policy))
+        print('Optimal policy loss: {}'.format(reward))
+    
     if True:
-        true_pdb, sim_pdb = env.unwrapped.export_pdb()
-        with open('test_true.pdb', 'w') as f:
-            f.write(true_pdb)
-        with open('test_sim.pdb', 'w') as f:
-            f.write(sim_pdb)
-    print('Optimal policy: {}'.format(optimal_policy))
-    print('Optimal policy loss: {}'.format(reward))
+        ''' Demonstrate different actions '''
+        for action in optimal_policy[:3]:
+            obs, reward, done, _, info = env.step(action)
+        state = env.unwrapped.state
+        with open('actionns_pre.pdb', 'w') as f:
+            f.write(env.unwrapped.export_pdb()[1])
+        env.step(optimal_policy[3])
+        with open('actions_opt.pdb', 'w') as f:
+            f.write(env.unwrapped.export_pdb()[1])
+        for action in [2, 136, 70]:
+            env.unwrapped.state = state
+            env.step(action)
+            with open('actions_{}.pdb'.format(action), 'w') as f:
+                f.write(env.unwrapped.export_pdb()[1])
 
 if False:
     '''
