@@ -1,6 +1,7 @@
 '''
 This file defines the artificial neural network used to approximate
-Q action-values for a given input state.
+Q action-values for a given input state. For use in deep Q learning
+RL algorithm.
 
 Created on 3/15/2023 by Steven Laverty (lavers@rpi.edu)
 '''

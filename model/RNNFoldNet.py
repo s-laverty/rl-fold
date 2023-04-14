@@ -1,3 +1,11 @@
+'''
+This file defines an RNN-based model for predicting the value and
+action prior probabilities from an observation. For usage with the 
+AlphaZero RL algorithm.
+
+Created on 2/28/2023 by Steven Laverty (lavers@rpi.edu)
+'''
+
 import typing
 
 import numpy as np
@@ -264,7 +272,7 @@ class PolicyNet(nn.Module):
         return p
 
 
-class OldFoldNet(nn.Module):
+class RNNFoldNet(nn.Module):
     '''
     Take a sequence of past (already placed groups) and future (unplaced
     groups) and generate a policy / value estimate for the current

@@ -1,8 +1,9 @@
 '''
-This file defines the 2-headed network used to approximate policy and
-value for a given input state.
+This file defines the 2-headed transformer-style neural network used to
+approximate policy and value for a given input state. For usage with the 
+AlphaZero RL algorithm.
 
-Created on 2/28/2023 by Steven Laverty (lavers@rpi.edu)
+Created on 3/8/2023 by Steven Laverty (lavers@rpi.edu)
 '''
 
 from __future__ import annotations
