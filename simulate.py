@@ -31,7 +31,8 @@ from fold_sim.wrappers import NormalizedRewards, TransformerInputObs
 from model.fold_q_net import FoldQNet
 from model.fold_zero_net import FoldZeroNet
 from utils.MCTS import UCT_search
-from utils.utils import TensorObs, load_model, pad_sequence_with_mask
+from utils.utils import (Config, SequenceId, TensorObs, load_model,
+                         pad_sequence_with_mask)
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
@@ -58,7 +59,7 @@ def get_actions(obs: torch.Tensor):
 
 
 def run_alphazero_sim(
-    seq_id: dict[str, str],
+    seq_id: SequenceId,
     net: typing.Callable[[torch.Tensor], tuple[np.ndarray, float]],
     evaluate: bool = False,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor], float]:
@@ -119,7 +120,7 @@ def run_alphazero_sim(
 
 
 def run_q_sim(
-    seq_id: dict[str, str],
+    seq_id: SequenceId,
     net: typing.Callable[[torch.Tensor], torch.Tensor],
     evaluate: bool = False,
     epsilon: float = 0.01,
@@ -231,7 +232,7 @@ def net_worker(
 
 def sim_worker(
     proc_idx: int,
-    config: dict,
+    config: Config,
     iteration: int,
     evaluate: bool,
     obs_buf: torch.Tensor,
@@ -360,12 +361,17 @@ def sim_worker(
 
 
 def batch_sim(
-    config: dict,
+    config: Config,
     iteration: int,
     model_file: str,
     result_file: str | None = None,
     evaluate: bool = False,
 ) -> list:
+    '''
+    Run a batched simulation according to a provided configuration.
+    Optionally specify a result file to save the results to.
+    Returns all simulation results--no ordering enforced.
+    '''
 
     # Use the provided configuration to determine tasks
     for task in config['sequences']:
@@ -571,6 +577,12 @@ def batch_sim(
 
 
 if __name__ == '__main__':
+    class Args(argparse.Namespace):
+        method: str
+        model_file: str
+        pdb_file: str
+        chain_id: str
+        out_file: str
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'method',
@@ -598,7 +610,7 @@ if __name__ == '__main__':
         type=str,
         help='File to store results of the simulation',
     )
-    args = parser.parse_args()
+    args = parser.parse_args(namespace=Args)
 
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
@@ -638,6 +650,7 @@ if __name__ == '__main__':
                 raise NotImplementedError()
     print('Final reward: {}'.format(value))
 
+    # Save results
     if args.out_file is not None:
         with open(args.out_file, 'w') as f:
             f.write('Final reward: {}\n'.format(value))
