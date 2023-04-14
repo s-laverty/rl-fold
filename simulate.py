@@ -8,15 +8,15 @@ Created on 3/3/2023 by Steven Laverty (lavers@rpi.edu)
 '''
 
 from __future__ import annotations
+
 import argparse
-from contextlib import nullcontext
 import ctypes
-import json
 import logging
 import os
 import queue
 import tempfile
 import typing
+from contextlib import nullcontext
 from multiprocessing.connection import Connection
 from multiprocessing.synchronize import Barrier
 
@@ -24,14 +24,14 @@ import gymnasium as gym
 import numpy as np
 import torch
 import torch.multiprocessing as mp
-from model.fold_q_net import FoldQNet
 
 import fold_sim
-from utils import TensorObs, load_model, pad_sequence_with_mask
 from fold_sim.envs.group_fold import AZIMUTHAL_DIM, POLAR_DIM, State
 from fold_sim.wrappers import NormalizedRewards, TransformerInputObs
+from model.fold_q_net import FoldQNet
 from model.fold_zero_net import FoldZeroNet
-from MCTS import UCT_search
+from utils.MCTS import UCT_search
+from utils.utils import TensorObs, load_model, pad_sequence_with_mask
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
@@ -43,6 +43,12 @@ MAX_CONCURRENT_EVALS = 64
 
 
 def get_actions(obs: torch.Tensor):
+    '''
+    From an an observation tensor, determine which actions are
+    available. For the first step only, actions are restricted to
+    an azimuthal angle of 0.
+    '''
+
     # For the first action only, restrict to polar transformations
     # If the second group has already been placed, then its future
     # indicator will be zero.
@@ -56,11 +62,20 @@ def run_alphazero_sim(
     net: typing.Callable[[torch.Tensor], tuple[np.ndarray, float]],
     evaluate: bool = False,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor], float]:
+    '''
+    Run a simulation using alpha zero policy, including rollouts.
+    If evaluate is true, choose the most-visited action with ~100%
+    probability.
+    '''
+
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
     env = TransformerInputObs(env)
     env = TensorObs(env)
-    env = NormalizedRewards(env)
+
+    # Use normalized rewards for training data
+    if not evaluate:
+        env = NormalizedRewards(env)
 
     # Run simulation
     observations = []
@@ -109,11 +124,20 @@ def run_q_sim(
     evaluate: bool = False,
     epsilon: float = 0.01,
 ) -> tuple[list[torch.Tensor], list[int], float]:
+    '''
+    Run a simulation using deep Q learning epsilon-greedy policy.
+    If evaluate is true, use a deterministic policy based on the action
+    with the highest Q-value.
+    '''
+
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
     env = TransformerInputObs(env)
     env = TensorObs(env)
-    env = NormalizedRewards(env)
+
+    # Use normalized rewards for training data
+    if not evaluate:
+        env = NormalizedRewards(env)
 
     # Run simulation
     observations = []
@@ -148,12 +172,14 @@ def net_worker(
     pipes: typing.Sequence[Connection],
     all_tasks_done: ctypes.c_bool,
 ) -> None:
-    torch.cuda.set_device(device)
     '''
-    Manage net evaluations on a single device. Pop requests from the
-    queue and evaluate them as inputs.
+    Entry point for worker process to perform batched network
+    evaluations. Will repeatedly pop items from the net queue until the
+    shared boolean all_tasks_done is set to true. At this point the
+    process will terminate.
     '''
 
+    torch.cuda.set_device(device)
     checkpoint = load_model(model_file)
     if method == 'alpha-zero':
         net = FoldZeroNet()
@@ -220,8 +246,12 @@ def sim_worker(
     barrier: Barrier,
 ) -> None:
     '''
-    Run simulation tasks.
+    Entry point for worker process to run simulations. Will repeatedly
+    pop items from the task queue until the shared boolean
+    all_tasks_done is set to true. All results are then either sent
+    back to the main process or stored in the filesystem temporarily.
     '''
+
     def net(obs: torch.Tensor):
         # Add tensor to processing queue, wait for result
         obs_buf[:obs.size(0)] = obs
@@ -237,13 +267,15 @@ def sim_worker(
                     'Nan prior probability encountered! Is there a net problem?',
                 )
             if (np.isnan(v)):
-                logger.warning('Nan value encountered! Is there a net problem?')
+                logger.warning(
+                    'Nan value encountered! Is there a net problem?')
             return np.exp(p.ravel()), v
         if config['method'] == 'deep-q':
             q = out_buf[0][buf_idx].detach().clone()
             out_free[buf_idx] = True
             return q
-        raise ValueError('Configuration method {} not recognized'.format(config['method']))
+        raise ValueError(
+            'Configuration method {} not recognized'.format(config['method']))
 
     share_memory = config.get('simulate_shm', True)
     results = []
@@ -272,7 +304,8 @@ def sim_worker(
                 (config['q_epsilon_max'] - config['q_epsilon_min'])
                 * config['q_epsilon_gamma'] ** iteration
             )
-            logger.debug('Current epsilon is %.3f (%s)', epsilon, mp.current_process().name)
+            logger.debug('Current epsilon is %.3f (%s)',
+                         epsilon, mp.current_process().name)
             result = run_q_sim(task, net, evaluate, epsilon)
             # Actions must be stored as floats due to pytorch
             # TypedStorage limitation (in newer versions, tensors of
@@ -353,7 +386,8 @@ def batch_sim(
     else:
         device = 'cpu'
         num_devices = 1
-    logger.info('Running simulation on %s with %d device workers.', device, num_devices)
+    logger.info('Running simulation on %s with %d device workers.',
+                device, num_devices)
 
     # Initialize queues and pipes (must use spawn context for cuda workers)
     share_memory = config.get('simulate_shm', True)
@@ -528,12 +562,13 @@ def batch_sim(
             os.makedirs(os.path.dirname(result_file))
         torch.save(
             (results, results_storage.storage())
-                if config.get('dataset_shm', False) else
-                results,
+            if config.get('dataset_shm', False) else
+            results,
             result_file,
         )
         logger.info('All simulation results saved to %s.', result_file)
     return results
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -564,7 +599,7 @@ if __name__ == '__main__':
         help='File to store results of the simulation',
     )
     args = parser.parse_args()
-    
+
     # Initialize environment
     env = gym.make('fold_sim/ResGroupFoldDiscrete-v0')
     env = TransformerInputObs(env)
