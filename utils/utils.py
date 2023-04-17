@@ -21,7 +21,16 @@ class SequenceId(typing_extensions.TypedDict):
     Unique identifying information for a protein sequence in the pdb.
     '''
     file_id: str
+    '''
+    [Required] The relative path to the pbd file from the pdb data
+    directory.
+    '''
     chain_id: str
+    '''
+    [Required] The unique alphabetic chain identifier for a single amino
+    acid chain from the designated protein. For proteins containing only
+    one chain, this will always be "A".
+    '''
 
 
 class Config(typing_extensions.TypedDict):
