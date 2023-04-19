@@ -36,7 +36,7 @@ You'll also need to to acquire PDB files in [mmCIF format](https://files.wwpdb.o
 
 ### Using a GPU
 
-To enable GPU training, you must also install PyTorch with CUDA (follow installation instructions at (Pytorch.org)[https://pytorch.org/get-started/previous-versions/#v120]). If you have `anaconda` or `miniconda` installed, run:
+To enable GPU training, you must also install PyTorch with CUDA (follow installation instructions at [Pytorch.org](https://pytorch.org/get-started/previous-versions/#v120)). If you have `anaconda` or `miniconda` installed, run:
 ```
 conda install cudatoolkit=10.1 -c pytorch
 ```
