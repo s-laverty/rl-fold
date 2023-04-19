@@ -36,7 +36,7 @@ You'll also need to to acquire PDB files in [mmCIF format](https://files.wwpdb.o
 
 ### Using a GPU
 
-To enable GPU training, you must also install PyTorch with CUDA (follow installation instructions at ()[]). If you have `anaconda` or `miniconda` installed, run:
+To enable GPU training, you must also install PyTorch with CUDA (follow installation instructions at (Pytorch.org)[https://pytorch.org/get-started/previous-versions/#v120]). If you have `anaconda` or `miniconda` installed, run:
 ```
 conda install cudatoolkit=10.1 -c pytorch
 ```
@@ -52,7 +52,7 @@ conda create --file=environment-aimos.yml
 
 You'll also need to to acquire PDB files in [mmCIF format](https://files.wwpdb.org/pub/pdb/data/structures/).
 
-The `bash` scripts in `scripts/` are intended for use on (RPI AiMOS)[https://cci.rpi.edu/] with the SLURM job scheduler. These will need to be tailored for individual use.
+The `bash` scripts in `scripts/` are intended for use on [RPI AiMOS](https://cci.rpi.edu/) with the SLURM job scheduler. These will need to be tailored for individual use.
 
 ## Usage
 
