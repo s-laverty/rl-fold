@@ -4,7 +4,7 @@ _Figure: Comparison of rl-fold reconstruction to the experimental structure of P
 # rl-fold
 Applying reinforcement learning techniques to the protein structure prediction problem.
 
-rl-fold is [Steven Laverty's](mailto:sdlaverty123@gmail.com) Master's Research Project in affiliation with [Rensselaer Polytechnic Institute](https://science.rpi.edu/computer-science) and research advisor [Mohammad Zaki, PhD](https://faculty.rpi.edu/mohammed-zaki).
+rl-fold is [Steven Laverty's](mailto:sdlaverty123@gmail.com) Master's Research Project in affiliation with [Rensselaer Polytechnic Institute](https://science.rpi.edu/computer-science) and research advisor [Mohammed Zaki, PhD](https://faculty.rpi.edu/mohammed-zaki).
 
 ## Features
 rl-fold implements a custom [Gymnasium](https://gymnasium.farama.org/) environment to predict protein structure. The task is implemented as *fragmented protein reconstruction*, which involves reassembling a 3d protein structure given a sequence of protein fragments.
